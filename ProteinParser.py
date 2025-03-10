@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 def extract_numbers(text):
-    """Ищет числа в тексте и возвращает список значений"""
+    """Finds numbers in the text and returns a list of values."""
     numbers = re.findall(r'\d+\.\d+|\d+', text)
     return [float(n) for n in numbers]
 
@@ -19,10 +19,10 @@ def get_protein_data(uniprot_id):
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
-        print(f"Ошибка при запросе UniProt ({uniprot_id}): {e}")
+        print(f"Error with UniProt request ({uniprot_id}): {e}")
         return None
 
-    # Функция белка
+    # Protein function
     function = next(
         (text["value"] for comment in data.get("comments", [])
          if comment.get("commentType") == "FUNCTION"
@@ -30,21 +30,21 @@ def get_protein_data(uniprot_id):
         "Unknown"
     )
 
-    # Кофакторы
+    # Cofactors
     cofactors = [
         text["value"] for comment in data.get("comments", [])
         if comment.get("commentType") == "PTM"
         for text in comment.get("texts", [])
     ]
 
-    # Локализация
+    # Localization
     localization = [
         loc.get("location", {}).get("value", "Unknown") for comment in data.get("comments", [])
         if comment.get("commentType") == "SUBCELLULAR LOCATION"
         for loc in comment.get("subcellularLocations", [])
     ]
 
-    # Взаимодействия
+    # Interactions
     interactions = [
         interact.get("interactantTwo", {}).get("uniProtKBAccession", "Unknown")
         for comment in data.get("comments", [])
@@ -52,7 +52,7 @@ def get_protein_data(uniprot_id):
         for interact in comment.get("interactions", [])
     ]
 
-    # Регуляция
+    # Regulation
     regulation = [
         text["value"] for comment in data.get("comments", [])
         if comment.get("commentType") in ["ACTIVITY REGULATION", "INDUCTION"]
@@ -76,12 +76,12 @@ def get_protein_data(uniprot_id):
             if ec and ec not in ec_numbers:
                 ec_numbers.append(ec)
 
-    # Масса белка
+    # Protein mass
     mass = data.get("sequence", {}).get("mass", "Unknown")
     if mass == "Unknown":
         seq_length = data.get("sequence", {}).get("length", None)
         if seq_length:
-            mass = round(seq_length * 110, 2)  # Средняя масса АК ≈ 110 Да
+            mass = round(seq_length * 110, 2)  # Average mass of AA ≈ 110 Da
 
     protein_info = {
         "ID": uniprot_id,
@@ -96,15 +96,15 @@ def get_protein_data(uniprot_id):
         "Diffusion": calculate_diffusion(mass),
     }
 
-    # Сохранение в файл
+    # Save to file
     save_protein_data(protein_info)
 
     return protein_info
 
 def save_protein_data(protein_info):
-    """Сохраняет данные в файл с уникальным именем по дате."""
+    """Saves data to a file with a unique name based on the date."""
     folder = "protein_data"
-    os.makedirs(folder, exist_ok=True)  # Создаёт папку, если её нет
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
 
     filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.json")
     filepath = os.path.join(folder, filename)
@@ -112,60 +112,60 @@ def save_protein_data(protein_info):
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(protein_info, f, indent=4, ensure_ascii=False)
 
-    print(f"✅ Данные сохранены в {filepath}")
+    print(f"✅ Data saved to {filepath}")
 
 def get_lifetime(mass):
-    """Эмпирическая формула для времени жизни белка."""
+    """Empirical formula for protein lifetime."""
     if mass == "Unknown" or not isinstance(mass, (int, float)):
         return "Unknown"
     return round(10 ** (5 - (mass / 50000)), 2)
 
 def calculate_diffusion(mass):
-    """Расчёт скорости диффузии по уравнению Стокса-Эйнштейна."""
+    """Calculates diffusion rate using the Stokes-Einstein equation."""
     if mass == "Unknown" or not isinstance(mass, (int, float)):
         return "Unknown"
     return round(1 / (mass ** 0.5), 5)
 
-# === UI на Tkinter ===
+# === Tkinter UI ===
 def on_search():
-    """Запуск парсинга при вводе UniProt ID."""
+    """Starts parsing when entering UniProt ID."""
     uniprot_id = entry_id.get().strip()
     if not uniprot_id:
-        messagebox.showerror("Ошибка", "Введите UniProt ID!")
+        messagebox.showerror("Error", "Please enter UniProt ID!")
         return
     
     protein_data = get_protein_data(uniprot_id)
     if not protein_data:
-        messagebox.showerror("Ошибка", "Не удалось получить данные!")
+        messagebox.showerror("Error", "Failed to retrieve data!")
         return
 
-    # Очищаем таблицу
+    # Clear table
     for row in table.get_children():
         table.delete(row)
 
-    # Заполняем таблицу
+    # Fill table
     for key, value in protein_data.items():
         table.insert("", "end", values=(key, str(value)))
 
-    messagebox.showinfo("Успех", "Данные успешно загружены и сохранены!")
+    messagebox.showinfo("Success", "Data successfully loaded and saved!")
 
-# Создание UI
+# Create UI
 root = tk.Tk()
 root.title("Protein Parser")
 
-# Ввод UniProt ID
+# UniProt ID input
 frame = tk.Frame(root)
 frame.pack(pady=10)
 tk.Label(frame, text="UniProt ID:").pack(side="left")
 entry_id = tk.Entry(frame, width=20)
 entry_id.pack(side="left", padx=5)
-tk.Button(frame, text="Парсить", command=on_search).pack(side="left")
+tk.Button(frame, text="Parse", command=on_search).pack(side="left")
 
-# Таблица
-columns = ("Параметр", "Значение")
+# Table
+columns = ("Parameter", "Value")
 table = ttk.Treeview(root, columns=columns, show="headings")
-table.heading("Параметр", text="Параметр")
-table.heading("Значение", text="Значение")
+table.heading("Parameter", text="Parameter")
+table.heading("Value", text="Value")
 table.pack(expand=True, fill="both", padx=10, pady=10)
 
 root.mainloop()
