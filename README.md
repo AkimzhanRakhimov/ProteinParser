@@ -30,3 +30,4 @@ This project is a Python-based application that retrieves, processes, and stores
 3. Run the script `protein_parser.py`.
 4. Enter a UniProt ID when prompted to fetch the protein data(For example:P000742).
 
+![alt text](https://github.com/AkimzhanRakhimov/ProteinParser/blob/main/2025-03-11_12-54-04.png)
